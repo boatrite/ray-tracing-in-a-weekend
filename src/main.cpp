@@ -3,6 +3,7 @@
 #include "float.h"
 #include "hitable_list.h"
 #include "sphere.h"
+#include "string.h"
 
 vec3 color(const ray& r, hitable *world) {
   hit_record rec;
@@ -15,7 +16,18 @@ vec3 color(const ray& r, hitable *world) {
   }
 }
 
-int main() {
+int main(int argc, char*argv[]) {
+  bool aa = true;
+
+  if (argc > 1) {
+    for (int i = 0; i < argc; i++) {
+      auto flag = argv[i];
+      if (strcmp(flag, "--no-aa")) {
+        aa = false;
+      }
+    }
+  }
+
   int nx = 200;
   int ny = 100;
   int ns = 100;
@@ -27,7 +39,6 @@ int main() {
   hitable *world = new hitable_list(list, 2);
 
   camera cam;
-  bool aa = true;
 
   for (int j = ny - 1; j >= 0; j--) {
     for (int i = 0; i < nx; i++) {
