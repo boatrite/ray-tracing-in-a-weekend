@@ -11,4 +11,6 @@ compare:
 	# Same command but using `montage` instead of `convert`.
 	# bash -c "montage -mode concatenate -tile 1x <(build/my_program) <(build/my_program --no-aa) >(display)"
 	# Lay out horizontally instead of vertically.
-	bash -c "montage -mode concatenate -tile x1 <(build/my_program) <(build/my_program --no-aa) >(display)"
+	# bash -c "montage -mode concatenate -tile x1 <(build/my_program) <(build/my_program --no-aa) >(display)"
+	# Adding more images!
+	bash -c "montage -mode concatenate -tile x1 <(build/my_program) <(build/my_program --no-aa) <(build/my_program --no-gamma-correct) >(display)"

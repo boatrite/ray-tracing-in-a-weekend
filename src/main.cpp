@@ -28,15 +28,21 @@ vec3 color(const ray& r, hitable *world) {
   }
 }
 
-int main(int argc, char*argv[]) {
+int main(int argc, char **argv) {
   bool aa = true;
+  bool gamma_correct = true;
 
-  if (argc > 1) {
-    for (int i = 0; i < argc; i++) {
-      auto flag = argv[i];
-      if (strcmp(flag, "--no-aa")) {
-        aa = false;
-      }
+  for (int i = 0; i < argc; ++i) {
+    std::cerr << i << ": " << argv[i] << std::endl;
+
+    if (strcmp(argv[i], "--no-aa") == 0) {
+      std::cerr << "Disabling AA" << std::endl;
+      aa = false;
+    }
+
+    if (strcmp(argv[i], "--no-gamma-correct") == 0) {
+      std::cerr << "Disabling gamma correction" << std::endl;
+      gamma_correct = false;
     }
   }
 
@@ -73,6 +79,9 @@ int main(int argc, char*argv[]) {
       }
 
       col /= float(ns);
+      if (gamma_correct) {
+        col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2])); // Gamma correction
+      }
       auto ir = int(255.99 * col[0]);
       auto ig = int(255.99 * col[1]);
       auto ib = int(255.99 * col[2]);
