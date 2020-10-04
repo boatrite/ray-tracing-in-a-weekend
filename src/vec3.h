@@ -1,6 +1,7 @@
-#include <math.h>
-#include <stdlib.h>
 #include <iostream>
+#include <math.h>
+#include <signal.h>
+#include <stdlib.h>
 
 class vec3 {
   public:
@@ -26,9 +27,9 @@ class vec3 {
     inline vec3& operator/=(const float t);
 
     inline float length() const {
-      return sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]); }
+      return sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]); }
     inline float squared_length() const {
-      return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
+      return e[0]*e[0] + e[1]*e[1] + e[2]*e[2]; }
     inline void make_unit_vector();
 
     float e[3];
@@ -70,7 +71,7 @@ inline vec3 operator*(float t, const vec3 &v) {
 }
 
 inline vec3 operator/(const vec3 &v, float t) {
-  return vec3(t / v.e[0], t / v.e[1], t / v.e[2]);
+  return vec3(v.e[0] / t, v.e[1] / t, v.e[2] / t);
 }
 
 inline vec3 operator*(const vec3 &v, float t) {
