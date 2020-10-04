@@ -54,31 +54,29 @@ int main(int argc, char*argv[]) {
 
   for (int j = ny - 1; j >= 0; j--) {
     for (int i = 0; i < nx; i++) {
+      vec3 col(0, 0, 0);
+
       if (aa) {
-        vec3 col(0, 0, 0);
         for (int s = 0; s < ns; s++) {
           float u = float(i + drand48()) / float(nx);
           float v = float(j + drand48()) / float(ny);
           ray r = cam.get_ray(u, v);
           col += color(r, world);
         }
-
-        col /= float(ns);
-        auto ir = int(255.99 * col[0]);
-        auto ig = int(255.99 * col[1]);
-        auto ib = int(255.99 * col[2]);
-        std::cout << ir << " " << ig << " " << ib << "\n";
       } else {
         float u = float(i) / float(nx);
         float v = float(j) / float(ny);
-        ray r = cam.get_ray(u, v);
-
-        vec3 col = color(r, world);
-        auto ir = int(255.99 * col[0]);
-        auto ig = int(255.99 * col[1]);
-        auto ib = int(255.99 * col[2]);
-        std::cout << ir << " " << ig << " " << ib << "\n";
+        for (int s = 0; s < ns; s++) {
+          ray r = cam.get_ray(u, v);
+          col += color(r, world);
+        }
       }
+
+      col /= float(ns);
+      auto ir = int(255.99 * col[0]);
+      auto ig = int(255.99 * col[1]);
+      auto ib = int(255.99 * col[2]);
+      std::cout << ir << " " << ig << " " << ib << "\n";
     }
   }
 }
