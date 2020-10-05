@@ -3,9 +3,8 @@
 #include "camera.h"
 #include "color.h"
 #include "hittable_list.h"
+#include "material.h"
 #include "sphere.h"
-
-enum class LightingType { normals, alt_approx_lambertian, true_lambertian, hacky_lambertian };
 
 double hit_sphere(const point3& center, double radius, const ray& r) {
     vec3 oc = r.origin() - center;
@@ -32,22 +31,11 @@ color ray_color(const ray& r, const hittable& world, int depth, LightingType lig
     if (lighting_type == LightingType::normals) {
       return 0.5 * (rec.normal + color(1,1,1));
     } else {
-      point3 target;
-      switch (lighting_type) {
-        case LightingType::hacky_lambertian:
-          target = rec.p + rec.normal + random_in_unit_sphere();
-          break;
-        case LightingType::true_lambertian:
-          target = rec.p + rec.normal + random_unit_vector();
-          break;
-        case LightingType::alt_approx_lambertian:
-          target = rec.p + rec.normal + random_in_hemisphere(rec.normal);
-          break;
-        default:
-          target = rec.p + rec.normal + random_in_unit_sphere();
-          break;
+      ray scattered;
+      color attenuation;
+      if (rec.mat_ptr->scatter(r, rec, attenuation, scattered, lighting_type)) {
+        return attenuation * ray_color(scattered, world, depth - 1, lighting_type);
       }
-      return 0.5 * ray_color(ray(rec.p, target - rec.p), world, depth - 1, lighting_type);
     }
   }
   vec3 unit_direction = unit_vector(r.direction());
@@ -100,8 +88,12 @@ int main(int argc, char** argv) {
 
   // World
   hittable_list world;
-  world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
-  world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+
+  auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
+  auto material_center = make_shared<lambertian>(color(0.7, 0.3, 0.3));
+
+  world.add(make_shared<sphere>(point3(0,-100.5,-1), 100, material_ground));
+  world.add(make_shared<sphere>(point3(0,0,-1), 0.5, material_center));
 
   // Camera
   camera cam;
