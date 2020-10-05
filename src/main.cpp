@@ -1,91 +1,134 @@
-#include <iostream>
+#include "common.h"
+
 #include "camera.h"
-#include "float.h"
-#include "hitable_list.h"
+#include "color.h"
+#include "hittable_list.h"
 #include "sphere.h"
-#include "string.h"
 
-vec3 random_in_unit_sphere() {
-  vec3 p;
-  do {
-    p = 2.0 * vec3(drand48(), drand48(), drand48()) - vec3(1,1,1);
-  } while (p.squared_length() >= 1.0);
-  return p;
+enum class LightingType { normals, alt_approx_lambertian, true_lambertian, hacky_lambertian };
+
+double hit_sphere(const point3& center, double radius, const ray& r) {
+    vec3 oc = r.origin() - center;
+    auto a = r.direction().length_squared();
+    auto half_b = dot(oc, r.direction());
+    auto c = oc.length_squared() - radius*radius;
+    auto discriminant = half_b*half_b - a*c;
+    if (discriminant < 0) {
+        return -1.0;
+    } else {
+        return (-half_b - sqrt(discriminant) ) / a;
+    }
 }
 
-vec3 color(const ray& r, hitable *world) {
+color ray_color(const ray& r, const hittable& world, int depth, LightingType lighting_type) {
   hit_record rec;
-  if(world->hit(r, 0.001, MAXFLOAT, rec)) {
-    // Normal map
-    // return 0.5 * vec3(rec.normal.x()+1, rec.normal.y()+1, rec.normal.z()+1);
 
-    vec3 target = rec.p + rec.normal + random_in_unit_sphere();
-    return 0.5 * color(ray(rec.p, target-rec.p), world);
-  } else {
-    vec3 unit_direction = unit_vector(r.direction());
-    float s = 0.5 * (unit_direction.y() + 1.0);
-    return (1.0 - s) * vec3(1.0, 1.0, 1.0) + s * vec3(0.5, 0.7, 1.0);
+  // If we've exceeded the ray bouce limit, no more light is gathered.
+  if (depth <= 0) {
+    return color(0,0,0);
   }
+
+  if(world.hit(r, 0.001, infinity, rec)) {
+    if (lighting_type == LightingType::normals) {
+      return 0.5 * (rec.normal + color(1,1,1));
+    } else {
+      point3 target;
+      switch (lighting_type) {
+        case LightingType::hacky_lambertian:
+          target = rec.p + rec.normal + random_in_unit_sphere();
+          break;
+        case LightingType::true_lambertian:
+          target = rec.p + rec.normal + random_unit_vector();
+          break;
+        case LightingType::alt_approx_lambertian:
+          target = rec.p + rec.normal + random_in_hemisphere(rec.normal);
+          break;
+        default:
+          target = rec.p + rec.normal + random_in_unit_sphere();
+          break;
+      }
+      return 0.5 * ray_color(ray(rec.p, target - rec.p), world, depth - 1, lighting_type);
+    }
+  }
+  vec3 unit_direction = unit_vector(r.direction());
+  auto t = 0.5*(unit_direction.y() + 1.0);
+  return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
+  // Render options
   bool aa = true;
   bool gamma_correct = true;
+  LightingType lighting_type = LightingType::true_lambertian;
 
-  for (int i = 0; i < argc; ++i) {
+  // Get args
+  for (auto i = 0; i < argc; ++i) {
     std::cerr << i << ": " << argv[i] << std::endl;
 
     if (strcmp(argv[i], "--no-aa") == 0) {
-      std::cerr << "Disabling AA" << std::endl;
       aa = false;
     }
 
     if (strcmp(argv[i], "--no-gamma-correct") == 0) {
-      std::cerr << "Disabling gamma correction" << std::endl;
       gamma_correct = false;
     }
-  }
 
-  int nx = 200;
-  int ny = 100;
-  int ns = 100;
-  std::cout << "P3\n" << nx << " " << ny << "\n255\n";
+    if (strcmp(argv[i], "--normals") == 0) {
+      lighting_type = LightingType::normals;
+      gamma_correct = false;
+    }
 
-  hitable *list[2];
-  list[0] = new sphere(vec3(0, 0, -1), 0.5);
-  list[1] = new sphere(vec3(0, -100.5, -1), 100);
-  hitable *world = new hitable_list(list, 2);
+    if (strcmp(argv[i], "--hacky_lambertian") == 0) {
+      lighting_type = LightingType::hacky_lambertian;
+    }
 
-  camera cam;
+    if (strcmp(argv[i], "--true_lambertian") == 0) {
+      lighting_type = LightingType::true_lambertian;
+    }
 
-  for (int j = ny - 1; j >= 0; j--) {
-    for (int i = 0; i < nx; i++) {
-      vec3 col(0, 0, 0);
-
-      if (aa) {
-        for (int s = 0; s < ns; s++) {
-          float u = float(i + drand48()) / float(nx);
-          float v = float(j + drand48()) / float(ny);
-          ray r = cam.get_ray(u, v);
-          col += color(r, world);
-        }
-      } else {
-        float u = float(i) / float(nx);
-        float v = float(j) / float(ny);
-        for (int s = 0; s < ns; s++) {
-          ray r = cam.get_ray(u, v);
-          col += color(r, world);
-        }
-      }
-
-      col /= float(ns);
-      if (gamma_correct) {
-        col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2])); // Gamma correction
-      }
-      auto ir = int(255.99 * col[0]);
-      auto ig = int(255.99 * col[1]);
-      auto ib = int(255.99 * col[2]);
-      std::cout << ir << " " << ig << " " << ib << "\n";
+    if (strcmp(argv[i], "--alt_approx_lambertian") == 0) {
+      lighting_type = LightingType::alt_approx_lambertian;
     }
   }
+
+  // Image
+  const auto aspect_ratio = 16.0 / 9.0;
+  const int image_width = 400;
+  const int image_height = static_cast<int>(image_width / aspect_ratio);
+  const int samples_per_pixel = 100;
+  const int max_depth = 50;
+
+  // World
+  hittable_list world;
+  world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
+  world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+
+  // Camera
+  camera cam;
+
+  // Render
+  std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
+
+  for (int j = image_height-1; j >= 0; --j) {
+    std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
+    for (int i = 0; i < image_width; ++i) {
+      color pixel_color(0,0,0);
+      for (int s = 0; s < samples_per_pixel; ++s) {
+        double u,v;
+
+        if (aa) {
+          u = (i + random_double()) / (image_width-1);
+          v = (j + random_double()) / (image_height-1);
+        } else {
+          u = double(i) / (image_width-1);
+          v = double(j) / (image_height-1);
+        }
+        ray r = cam.get_ray(u, v);
+        pixel_color += ray_color(r, world, max_depth, lighting_type);
+      }
+      write_color(std::cout, pixel_color, samples_per_pixel, gamma_correct);
+    }
+  }
+
+  std::cerr << "\nDone.\n";
 }
